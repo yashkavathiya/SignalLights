@@ -1,0 +1,140 @@
+<html>
+    <head>
+        <title>Signal Light Control Panel</title>
+        <style>
+            .light{
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .lights-container{
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Signal Light Control Panel</h1>
+        <div class="lights-container">
+            <div>
+                <label>A</label>
+                <div class="light" id="A_light" style="background-color: red;"></div>
+                <input type="number" id="A_light_sequence" name="A_light_sequence" required>
+            </div>
+            <div>
+                <label>B</label>
+                <div class="light" id="B_light" style="background-color: red;"></div>
+                <input type="number" id="B_light_sequence" name="B_light_sequence" required>
+            </div>
+            <div>
+                <label>C</label>
+                <div class="light" id="C_light" style="background-color: red;"></div>
+                <input type="number" id="C_light_sequence" name="C_light_sequence" required>
+            </div>
+            <div>
+                <label>D</label>
+                <div class="light" id="D_light" style="background-color: red;"></div>
+                <input type="number" id="D_light_sequence" name="D_light_sequence" required>
+            </div>
+        </div><br><br>
+
+        <label for="greenInterval">Green Interval (seconds):</label>
+        <input type="number" id="greenInterval" name="greenInterval" required><br><br>
+
+        <label for="yellowInterval">Yellow Interval (seconds):</label>
+        <input type="number" id="yellowInterval" name="yellowInterval" required><br><br>
+
+        <button id="startBtn" onclick="startLights()">Start</button>
+        <button id="stopBtn" onclick="stopLights()">Stop</button>
+    </body>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        var lights = document.querySelectorAll('.light');
+        var greenIntervalInput = document.getElementById('greenInterval');
+        var yellowIntervalInput = document.getElementById('yellowInterval');
+        var startBtn = document.getElementById('startBtn');
+        var stopBtn = document.getElementById('stopBtn');
+
+        let intervalId;
+        let currentLightIndex = 0;
+        let sequenceIndex = 0;
+        let sequence = [];
+
+        function startLights(){
+            var greenInterval = parseInt(greenIntervalInput.value);
+            var yellowInterval = parseInt(yellowIntervalInput.value);
+            var lightSequenceInputs = document.querySelectorAll('[id$="_light_sequence"]');
+            let isValid = true;
+            lightSequenceInputs.forEach(input => {
+                if(input.value.trim() === ''){
+                    isValid = false;
+                }
+            });
+
+            if(!greenInterval || !yellowInterval || !isValid){
+                alert('Please fill all fields.');
+                return;
+            }
+
+            $.ajax({
+                url:'generate_sequence.php',
+                type: 'POST',
+                data: {
+                    action:'start',
+                    greenInterval: greenInterval,
+                    yellowInterval: yellowInterval,
+                    A_light_sequence: document.getElementById('A_light_sequence').value, 
+                    B_light_sequence: document.getElementById('B_light_sequence').value, 
+                    C_light_sequence: document.getElementById('C_light_sequence').value, 
+                    D_light_sequence: document.getElementById('D_light_sequence').value, 
+                },
+                success: function(response){
+                    sequence = JSON.parse(response);
+                    changeLight();
+                    intervalId= setInterval(changeLight,(greenInterval + yellowInterval) * 1000);
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                },
+                error: function(xhr, status, error){
+                    console.error('Error:',error);
+                }
+            });
+        }
+
+        function stopLights(){
+            clearInterval(intervalId);
+            lights.forEach(light => {
+                light.style.backgroundColor = 'red';
+            });
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            currentLightIndex = 0;
+        }
+
+        function changeLight(){
+            const {light , color } = sequence[sequenceIndex];
+
+            lights.forEach(l => {
+                if(l.id === light){
+                    l.style.backgroundColor = color;
+                }
+            });
+
+            let nextInterval = color === 'yellow' ? yellowIntervalInput.value * 1000 : greenIntervalInput.value * 1000;
+
+            if(sequenceIndex >= sequence.length - 1){
+                sequenceIndex = 0;
+            } else {
+                if(color === 'yellow'){
+                    setTimeout(changeLight,nextInterval);
+                }
+                if(color === 'green'){
+                    setTimeout(changeLight,nextInterval);
+                }
+            }
+
+            sequenceIndex++;
+        }
+    </script>
+</html>
